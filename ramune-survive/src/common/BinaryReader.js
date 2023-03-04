@@ -62,10 +62,10 @@ export default class BinaryReader {
     }
 
 	getString() {
-		let char, name = "";
-		while ((char = this.getUint16()) != 0) {
-			name += String.fromCharCode(char);
-		}
+		let [length, name] = [this.getUint16(), ""];
+        for (let i = 0; i < length; i++) {
+            name += String.fromCharCode(this.getUint16());
+        }
         return name;
 	}
 

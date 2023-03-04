@@ -3,11 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
+    <title>LamuneApp</title>
   </head>
   <body>
+    <div id="lamune-status"></div>
     <div id="app">
       <canvas id="canvas"></canvas>
+    </div>
+    <div id="settings-overlays">
+        <div id="settings-layout">
+            <div class="settings-title">設定</div>
+            <div id="settings-partitions" class="settings-partitions">
+                <div id="settings-container" class="settings-container"></div>
+            </div>
+        </div>
     </div>
     <script type="module" src="/main.js"></script>
   </body>
