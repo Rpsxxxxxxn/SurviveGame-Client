@@ -6,9 +6,22 @@
     <title>LamuneApp</title>
   </head>
   <body>
-    <div id="lamune-status"></div>
+    <div id="lamune-status">
+      <div id="server-cpu-usage"></div>
+      <div id="server-memory-usage"></div>
+      <div id="server-delta-time"></div>
+      <div id="server-frame-rate"></div>
+      <div id="network-buffer-usage"></div>
+      <div id="server-ping"></div>
+    </div>
     <div id="app">
       <canvas id="canvas"></canvas>
+      <div class="chat-container">
+          <div id='chatroom'></div>
+          <div id='chatboxArea'>
+              <input id='chat-input' class="chat-input" type='text'></input>
+          </div>
+      </div>
     </div>
     <div id="settings-overlays">
         <div id="settings-layout">

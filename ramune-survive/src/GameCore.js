@@ -2,6 +2,7 @@ import BinaryReader from "./common/BinaryReader";
 import Hotkey from "./common/HotKey";
 import Character from "./entity/Character";
 import $ from 'jquery';
+import Utils from "./common/Utils";
 
 export default class GameCore {
     constructor() {
@@ -13,7 +14,7 @@ export default class GameCore {
 
         this.trackingId = 0;
         this.players = {};
-        this.characters = [];
+        this.characters = {};
 
         this.websocket = new WebSocket('ws://localhost:9000');
         this.websocket.binaryType = 'arraybuffer';
@@ -24,6 +25,7 @@ export default class GameCore {
         this.websocket.onclose = function() {
             console.log('Disconnected from server');
         }
+        this.lastPingTime = 0;
     }
 
     /**
@@ -38,8 +40,18 @@ export default class GameCore {
      */
     update() {
         this.ctx.fillStyle = "rgb(0, 0, 0)";
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
+        Object.values(this.characters).forEach(character => {
+            if (character.id === this.trackingId) {
+                this.ctx.fillStyle = "rgb(0, 255, 0)";
+            } else {
+                this.ctx.fillStyle = "rgb(255, 255, 255)";
+            }
+            this.ctx.fillRect(character.x, character.y, 30, 30);
+        });
+
         requestAnimationFrame(this.update.bind(this));
     }
 
@@ -76,6 +88,8 @@ export default class GameCore {
             this.updateCharacters(reader);
             break;
         }
+        this.calcServerPingTime();
+        this.calcNetworkBufferUsage();
     }
 
     /**
@@ -91,7 +105,7 @@ export default class GameCore {
             reader.getUint16(), 
             reader.getUint16(), 
             reader.getUint16())
-        this.characters.push(character);
+        // this.characters.push(character);
     }
 
     /**
@@ -100,9 +114,16 @@ export default class GameCore {
      */
     addChat(reader) {
         const id = reader.getUint32();
-        const name = reader.getString();
+        const sender = reader.getString();
         const message = reader.getString();
-        // console.log(id, name + ': ' + message);
+        
+        const divEl = $("<div>");
+        const senderEl = $("<span>").text(`[${id}]${sender}:`);
+        divEl.append(senderEl);
+        const messageEl = $("<span>").addClass("msg").text(message);
+        divEl.append(messageEl);
+        $("#chatroom").append(divEl);
+        $("#chatroom").scrollTop($("#chatroom").prop("scrollHeight"));
     }
 
     /**
@@ -162,22 +183,78 @@ export default class GameCore {
     updateServerUsage(reader) {
         const cpuUsage = reader.getFloat();
         const memoryUsage = reader.getFloat();
-        // console.log('CPU: ' + cpuUsage + '%, Memory: ' + memoryUsage + '%');
+        const deltaTime = reader.getFloat();
+        const frameRate = reader.getFloat();
+
+        $('#server-cpu-usage').text('ServerCPU: ' + cpuUsage + '%');
+        $('#server-memory-usage').text('ServerMemory: ' + Math.floor(memoryUsage * 100) / 100 + '%');
+        $('#server-delta-time').text('ServerDeltaTime: ' + deltaTime + 'ms');
+        $('#server-frame-rate').text('ServerFrameRate: ' + Math.floor(frameRate) + 'fps');
     }
 
+    /**
+     * キャラクターのステータスを更新する
+     * @param {*} reader 
+     */
     updateCharacters(reader) {
-        const characters = reader.getUint8();
-        for (let i = 0; i < characters; i++) {
+        const characters = {};
+        const count = reader.getUint8();
+        for (let i = 0; i < count; i++) {
             const id = reader.getUint32();
             const x = reader.getFloat();
             const y = reader.getFloat();
-            this.characters.push(new Character(id, '', x, y, 0, 0, 0));
+            characters[id] = {id, x, y};
         }
+
+        const newData = Object.keys(characters);
+        const oldData = Object.keys(this.characters);
+        const addIds = Utils.findElement(newData, oldData);
+        const delIds = Utils.findElement(oldData, newData);
+        addIds.forEach(id => {
+            this.characters[id] = characters[id];
+        });
+        newData.forEach(id => {
+            this.characters[id] = characters[id];
+        });
+        delIds.forEach(id => {
+            delete this.characters[id];
+        });
     }
 
+    /**
+     * パケットを送信する
+     * @param {*} packet 
+     */
     onSend(packet) {
         if (this.websocket.readyState === WebSocket.OPEN) {
             this.websocket.send(packet.getPacket());
+        }
+    }
+
+    /**
+     * サーバーの応答時間を計算する
+     */
+    calcServerPingTime() {
+        const now = Date.now();
+        const ping = now - this.lastPingTime;
+        this.lastPingTime = now;
+        $('#server-ping').text('ServerPing: ' + ping + 'ms');
+    }
+
+    /**
+     * ネットワークバッファの使用率を計算する
+     */
+    calcNetworkBufferUsage() {
+        const buffer = this.websocket.bufferedAmount;
+        const usage = buffer / this.websocket.bufferedAmountMax * 100;
+
+        if (usage > 100) {
+            $('#network-buffer-usage').css('color', 'red');
+        } else {
+            $('#network-buffer-usage').css('color', 'black');
+        }
+        if (!Number.isNaN(usage)) {
+            $('#network-buffer-usage').text('NetworkBuffer: ' + Math.floor(usage * 100) / 100 + '%');
         }
     }
 }

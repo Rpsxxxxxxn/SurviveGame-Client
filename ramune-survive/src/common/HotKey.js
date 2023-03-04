@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import AddChat from '../packet/AddChat.js';
 import Move from '../packet/Move.js';
 import Utils from './Utils.js';
 
@@ -14,6 +15,14 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '上移動',
                 keyDown: function() {
+                    this.gameCore.onSend(new Move(6));
+                }.bind(this),
+            },
+            hkRight: {
+                defaultHotkey: 'D',
+                defaultMouseKey: '',
+                name: '右移動',
+                keyDown: function() {
                     this.gameCore.onSend(new Move(0));
                 }.bind(this),
             },
@@ -22,7 +31,7 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '下移動',
                 keyDown: function() {
-                    this.gameCore.onSend(new Move(1));
+                    this.gameCore.onSend(new Move(2));
                 }.bind(this),
             },
             hkLeft: {
@@ -30,15 +39,7 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '左移動',
                 keyDown: function() {
-                    this.gameCore.onSend(new Move(2));
-                }.bind(this),
-            },
-            hkRight: {
-                defaultHotkey: 'D',
-                defaultMouseKey: '',
-                name: '右移動',
-                keyDown: function() {
-                    this.gameCore.onSend(new Move(3));
+                    this.gameCore.onSend(new Move(4));
                 }.bind(this),
             },
             hkHotkeyMenu: {
@@ -48,12 +49,24 @@ export default class Hotkey {
                 keyDown: function() {
                     $('#settings-overlays').toggle();
                 }.bind(this),
-            }
+            },
+            hkChatEnter: {
+                defaultHotkey: 'ENTER',
+                defaultMouseKey: '',
+                name: 'チャットの送信',
+                keyDown: function() {
+                    $('#chat-input').focus();
+                    if ('' !== $('#chat-input').val()) {
+                        this.gameCore.onSend(new AddChat($('#chat-input').val()));
+                        $('#chat-input').val('');
+                    }
+                }.bind(this),
+            },
         };
         document.addEventListener('keydown', this.onKeyDown.bind(this));
         document.addEventListener('keyup', this.onKeyUp.bind(this));
-        document.addEventListener('mousedown', this.onMouseDown.bind(this));
-        document.addEventListener('mouseup', this.onMouseUp.bind(this));
+        // document.addEventListener('mousedown', this.onMouseDown.bind(this));
+        // document.addEventListener('mouseup', this.onMouseUp.bind(this));
 
         this.createHTML();
         this.createConfig();
