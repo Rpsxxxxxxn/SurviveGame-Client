@@ -5,6 +5,7 @@ import $ from 'jquery';
 import Utils from "./common/Utils";
 import Move from "./packet/Move";
 import Player from "./entity/Player";
+import Bullet from "./entity/Bullet";
 
 export default class GameCore {
     constructor() {
@@ -18,7 +19,7 @@ export default class GameCore {
         this.trackingEntity = null;
         this.players = {};
         this.characters = {};
-        this.drawObject = {};
+        this.bullets = {};
         this.border = { x: 0, y: 0, w: 100, h:100 };
         this.lastPingTime = 0;
 
@@ -110,6 +111,14 @@ export default class GameCore {
             // 遅延処理
             character.position.lerp(character.newPosition, 0.3);
         });
+        Object.values(this.bullets).forEach(bullets => {
+            this.ctx.fillStyle = "rgb(255, 0, 0)";
+            this.ctx.fillRect(bullets.position.x, bullets.position.y, 10, 10);
+            // this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
+            //     character.position.x, character.position.y, chipSize, chipSize);
+            // 遅延処理
+            bullets.position.lerp(bullets.newPosition, 0.3);
+        });
 
         if (Utils.ObjectIsNotNull(this.trackingEntity)) {
             this.ctx.restore();
@@ -146,14 +155,18 @@ export default class GameCore {
             break;
         case 0x06: // カメラが追跡するキャラクターのID
             this.trackingId = reader.getUint32();
-            console.log(this.trackingId);
-            // this.trackingEntity = this.characters[this.trackingId];
             break;
         case 0x07: // キャラクターのステータスを更新する
             this.updateCharacters(reader);
             break;
         case 0x08:
             this.addBorder(reader);
+            break;
+        case 0x09:
+            this.addDamageText(reader);
+            break;
+        case 0x0A:
+            this.updateBullets(reader);
             break;
         }
         this.calcServerPingTime();
@@ -296,6 +309,47 @@ export default class GameCore {
             delete this.characters[id];
         });
         // console.log(this.characters);
+    }
+
+    /**
+     * ダメージテキストを追加する
+     * @param {*} reader 
+     */
+    addDamageText(reader) {
+        const x = reader.getFloat();
+        const y = reader.getFloat();
+        const damage = reader.getUint32();
+        const r = reader.getUint8();
+        const g = reader.getUint8();
+        const b = reader.getUint8();
+        console.log(x, y, damage, r, g, b);
+    }
+
+    updateBullets(reader) {
+        const bullets = {};
+        const count = reader.getUint16();
+        for (let i = 0; i < count; i++) {
+            const id = reader.getUint32();
+            const x = reader.getFloat();
+            const y = reader.getFloat();
+            const size = reader.getFloat();
+            bullets[id] = new Bullet(id, x, y, size);
+        }
+        const newData = Object.keys(bullets);
+        const oldData = Object.keys(this.bullets);
+        const addIds = Utils.findElement(newData, oldData);
+        const delIds = Utils.findElement(oldData, newData);
+        addIds.forEach(id => {
+            this.bullets[id] = bullets[id];
+        });
+        newData.forEach(id => {
+            this.bullets[id].newPosition.x = bullets[id].position.x;
+            this.bullets[id].newPosition.y = bullets[id].position.y;
+        });
+        delIds.forEach(id => {
+            delete this.bullets[id];
+        });
+        // console.log(this.bullets);
     }
 
     /**
