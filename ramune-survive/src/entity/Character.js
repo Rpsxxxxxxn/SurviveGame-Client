@@ -1,39 +1,10 @@
+import Vector2 from "../common/Vector2";
+
 export default class Character {
-    constructor(id, name, hp, str, dex, int, luk) {
+    constructor(id, x, y) {
         this.id = id;
-        this.name = name;
-        this.hp = hp;
-        this.str = str;
-        this.dex = dex;
-        this.int = int;
-        this.luk = luk;
-    }
-
-    get Id() {
-        return this.id;
-    }
-
-    get Name() {
-        return this.name;
-    }
-
-    get Hp() {
-        return this.hp;
-    }
-
-    get Str() {
-        return this.str;
-    }
-
-    get Dex() {
-        return this.dex;
-    }
-
-    get Int() {
-        return this.int;
-    }
-
-    get Luk() {
-        return this.luk;
+        this.position = new Vector2(x, y);
+        this.oldPosition = new Vector2(x, y);
+        this.newPosition = new Vector2(x, y);
     }
 }

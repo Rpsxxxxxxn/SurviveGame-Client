@@ -3,19 +3,38 @@ import Hotkey from "./common/HotKey";
 import Character from "./entity/Character";
 import $ from 'jquery';
 import Utils from "./common/Utils";
+import Move from "./packet/Move";
+import Player from "./entity/Player";
 
 export default class GameCore {
     constructor() {
         this.hotkey = new Hotkey(this);
         this.canvas = document.getElementById('canvas');
         this.ctx = canvas.getContext('2d');
-        this.canvas.width = 640;
-        this.canvas.height = 480;
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
 
-        this.trackingId = 0;
+        this.trackingId = -1;
+        this.trackingEntity = null;
         this.players = {};
         this.characters = {};
+        this.drawObject = {};
+        this.border = { x: 0, y: 0, w: 100, h:100 };
+        this.lastPingTime = 0;
 
+        this.charImage = new Image();
+        this.charImage.src = './assets/image/char.png';
+
+        this.dirtImage = new Image();
+        this.dirtImage.src = './assets/image/dirt.png';
+
+        setInterval(this.updateMove.bind(this), 10);
+    }
+
+    /**
+     * 初期化処理
+     */
+    initialize() {
         this.websocket = new WebSocket('ws://localhost:9000');
         this.websocket.binaryType = 'arraybuffer';
         this.websocket.onopen = function() {
@@ -25,32 +44,76 @@ export default class GameCore {
         this.websocket.onclose = function() {
             console.log('Disconnected from server');
         }
-        this.lastPingTime = 0;
-    }
-
-    /**
-     * 初期化処理
-     */
-    initialize() {
-
     }
 
     /**
      * 更新処理
      */
     update() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.ctx.imageSmoothingEnabled = false;
         this.ctx.fillStyle = "rgb(0, 0, 0)";
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        Object.values(this.characters).forEach(character => {
-            if (character.id === this.trackingId) {
-                this.ctx.fillStyle = "rgb(0, 255, 0)";
-            } else {
-                this.ctx.fillStyle = "rgb(255, 255, 255)";
+
+        let trackingX = 0;
+        let trackingY = 0;
+        if (Utils.ObjectIsNotNull(this.trackingEntity)) {
+            this.ctx.save();
+            this.ctx.translate(window.innerWidth * .5, window.innerHeight * .5);
+            this.ctx.scale(1, 1);
+            trackingX = this.trackingEntity.position.x;
+            trackingY = this.trackingEntity.position.y;
+            if (this.trackingEntity.position.x - window.innerWidth * .5 < 0) {
+                trackingX = window.innerWidth * .5;
             }
-            this.ctx.fillRect(character.x, character.y, 30, 30);
+            if (this.trackingEntity.position.y - window.innerHeight * .5 < 0) {
+                trackingY = window.innerHeight * .5;
+            }
+            if (this.trackingEntity.position.x + window.innerWidth * .5 > this.border.w) {
+                trackingX = this.border.w - window.innerWidth * .5;
+            }
+            if (this.trackingEntity.position.y + window.innerHeight * .5 > this.border.h) {
+                trackingY = this.border.h - window.innerHeight * .5;
+            }
+            this.ctx.translate(-trackingX, -trackingY);
+        } else {
+            if (this.trackingId !== -1) {
+                // トラッキングするキャラクターを決める
+                this.trackingEntity = this.characters[this.trackingId];
+                // console.log(this.trackingEntity, this.trackingId);
+            }
+        }
+
+        const chipSize = 48;
+        const drawStartX = ~~((trackingX - window.innerWidth * .5) / chipSize);
+        const drawStartY = ~~((trackingY - window.innerHeight * .5) / chipSize);
+        const drawEndX = ~~((trackingX + window.innerWidth * .5) / chipSize);
+        const drawEndY = ~~((trackingY + window.innerHeight * .5) / chipSize);
+        for (let i = drawStartX; i < drawEndX + 1; i++) {
+            for (let j = drawStartY; j < drawEndY + 1; j++) {
+                if (i >= 0 && j >= 0 && i < this.border.w / chipSize && j < this.border.h / chipSize) {
+                    this.ctx.drawImage(this.dirtImage, 32, 32 * 4, 32, 32,
+                        i * chipSize, j * chipSize, chipSize, chipSize);
+                }
+            }
+        }
+
+        this.drawingBorder(this.ctx);
+        this.drawingSector(this.ctx);
+        
+        // キャラクターの描画
+        Object.values(this.characters).forEach(character => {
+            this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
+                character.position.x, character.position.y, chipSize, chipSize);
+            // 遅延処理
+            character.position.lerp(character.newPosition, 0.3);
         });
+
+        if (Utils.ObjectIsNotNull(this.trackingEntity)) {
+            this.ctx.restore();
+        }
 
         requestAnimationFrame(this.update.bind(this));
     }
@@ -83,13 +146,26 @@ export default class GameCore {
             break;
         case 0x06: // カメラが追跡するキャラクターのID
             this.trackingId = reader.getUint32();
+            console.log(this.trackingId);
+            // this.trackingEntity = this.characters[this.trackingId];
             break;
         case 0x07: // キャラクターのステータスを更新する
             this.updateCharacters(reader);
             break;
+        case 0x08:
+            this.addBorder(reader);
+            break;
         }
         this.calcServerPingTime();
         this.calcNetworkBufferUsage();
+    }
+
+    addBorder(reader) {
+        const x = reader.getFloat();
+        const y = reader.getFloat();
+        const w = reader.getFloat();
+        const h = reader.getFloat();
+        this.border = { x, y, w, h };
     }
 
     /**
@@ -97,7 +173,7 @@ export default class GameCore {
      * @param {*} reader 
      */
     addPlayer(reader) {
-        const character = new Character(
+        const player = new Player(
             reader.getUint32(), 
             reader.getString(), 
             reader.getUint16(), 
@@ -105,6 +181,7 @@ export default class GameCore {
             reader.getUint16(), 
             reader.getUint16(), 
             reader.getUint16())
+        console.log(player)
         // this.characters.push(character);
     }
 
@@ -118,7 +195,7 @@ export default class GameCore {
         const message = reader.getString();
         
         const divEl = $("<div>");
-        const senderEl = $("<span>").text(`[${id}]${sender}:`);
+        const senderEl = $("<span>").text(`${sender}:`);
         divEl.append(senderEl);
         const messageEl = $("<span>").addClass("msg").text(message);
         divEl.append(messageEl);
@@ -152,8 +229,6 @@ export default class GameCore {
             const id = reader.getUint8();
             const x = reader.getFloat();
             const y = reader.getFloat();
-            this.ctx.fillStyle = "rgb(255, 0, 0)";
-            this.ctx.fillRect(x, y, 10, 10);
             console.log(id, x, y);
         }
     }
@@ -187,7 +262,7 @@ export default class GameCore {
         const frameRate = reader.getFloat();
 
         $('#server-cpu-usage').text('ServerCPU: ' + cpuUsage + '%');
-        $('#server-memory-usage').text('ServerMemory: ' + Math.floor(memoryUsage * 100) / 100 + '%');
+        $('#server-memory-usage').text('ServerMemory: ' + Math.floor(memoryUsage * 100) / 100 + 'MB');
         $('#server-delta-time').text('ServerDeltaTime: ' + deltaTime + 'ms');
         $('#server-frame-rate').text('ServerFrameRate: ' + Math.floor(frameRate) + 'fps');
     }
@@ -198,14 +273,14 @@ export default class GameCore {
      */
     updateCharacters(reader) {
         const characters = {};
-        const count = reader.getUint8();
+        const count = reader.getUint16();
         for (let i = 0; i < count; i++) {
             const id = reader.getUint32();
             const x = reader.getFloat();
             const y = reader.getFloat();
-            characters[id] = {id, x, y};
+            const direction = reader.getFloat();
+            characters[id] = new Character(id, x, y);
         }
-
         const newData = Object.keys(characters);
         const oldData = Object.keys(this.characters);
         const addIds = Utils.findElement(newData, oldData);
@@ -214,11 +289,13 @@ export default class GameCore {
             this.characters[id] = characters[id];
         });
         newData.forEach(id => {
-            this.characters[id] = characters[id];
+            this.characters[id].newPosition.x = characters[id].position.x;
+            this.characters[id].newPosition.y = characters[id].position.y;
         });
         delIds.forEach(id => {
             delete this.characters[id];
         });
+        // console.log(this.characters);
     }
 
     /**
@@ -256,5 +333,118 @@ export default class GameCore {
         if (!Number.isNaN(usage)) {
             $('#network-buffer-usage').text('NetworkBuffer: ' + Math.floor(usage * 100) / 100 + '%');
         }
+    }
+
+    sendMoveUp() {
+        if (!this.isMoveUp) {
+            this.isMoveUp = true;
+        }
+    }
+
+    sendMoveRight() {
+        if (!this.isMoveRight) {
+            this.isMoveRight = true;
+        }
+    }
+
+    sendMoveDown() {
+        if (!this.isMoveDown) {
+            this.isMoveDown = true;
+        }
+    }
+
+    sendMoveLeft() {
+        if (!this.isMoveLeft) {
+            this.isMoveLeft = true;
+        }
+    }
+
+    cancelMoveUp() {
+        if (this.isMoveUp) {
+            this.isMoveUp = false;
+        }
+    }
+
+    cancelMoveRight() {
+        if (this.isMoveRight) {
+            this.isMoveRight = false;
+        }
+    }
+
+    cancelMoveDown() {
+        if (this.isMoveDown) {
+            this.isMoveDown = false;
+        }
+    }
+
+    cancelMoveLeft() {
+        if (this.isMoveLeft) {
+            this.isMoveLeft = false;
+        }
+    }
+
+    updateMove() {
+        if (this.isMoveUp && this.isMoveRight) {
+            this.onSend(new Move(7));
+        } else if (this.isMoveRight && this.isMoveDown) {
+            this.onSend(new Move(1));
+        } else if (this.isMoveDown && this.isMoveLeft) {
+            this.onSend(new Move(3));
+        } else if (this.isMoveLeft && this.isMoveUp) {
+            this.onSend(new Move(5));
+        } else if (this.isMoveUp) {
+            this.onSend(new Move(6));
+        } else if (this.isMoveRight) {
+            this.onSend(new Move(0));
+        } else if (this.isMoveDown) {
+            this.onSend(new Move(2));
+        } else if (this.isMoveLeft) {
+            this.onSend(new Move(4));
+        }
+    }
+
+    /**
+     * 枠を描画する
+     * @param {*} ctx 
+     */
+    drawingBorder(ctx) {
+        ctx.save();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(this.border.x, this.border.y);
+        ctx.lineTo(this.border.w, this.border.y);
+        ctx.lineTo(this.border.w, this.border.h);
+        ctx.lineTo(this.border.x, this.border.h);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+    }
+    
+    /**
+     * セクターを描画する
+     * @param {*} ctx 
+     */
+    drawingSector(ctx) {
+        const x = Math.round(this.border.x) + 20;
+        const y = Math.round(this.border.y) + 20;
+        const w = (Math.round(this.border.w) - 20 - x) * .2;
+        const h = (Math.round(this.border.h) - 20 - y) * .2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#333333';
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold " + .5 * w + "px Arial";
+        for (let j = 0; j < 5; j++) {
+            for (let i = 0; i < 5; i++) {
+                ctx.fillText((String.fromCharCode('A'.charCodeAt(0) + j)) + (i + 1), x + w * i + w / 2, y + h * j + h / 2);
+                ctx.strokeRect(x + w * i, y + h * j, w, h);
+            }
+        }
+        ctx.stroke();
+        ctx.restore();
     }
 }

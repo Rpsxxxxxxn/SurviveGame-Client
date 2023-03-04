@@ -1,6 +1,5 @@
 import $ from 'jquery';
 import AddChat from '../packet/AddChat.js';
-import Move from '../packet/Move.js';
 import Utils from './Utils.js';
 
 export default class Hotkey {
@@ -15,7 +14,10 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '上移動',
                 keyDown: function() {
-                    this.gameCore.onSend(new Move(6));
+                    this.gameCore.sendMoveUp();
+                }.bind(this),
+                keyUp: function() {
+                    this.gameCore.cancelMoveUp();
                 }.bind(this),
             },
             hkRight: {
@@ -23,7 +25,10 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '右移動',
                 keyDown: function() {
-                    this.gameCore.onSend(new Move(0));
+                    this.gameCore.sendMoveRight();
+                }.bind(this),
+                keyUp: function() {
+                    this.gameCore.cancelMoveRight();
                 }.bind(this),
             },
             hkDown: {
@@ -31,7 +36,10 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '下移動',
                 keyDown: function() {
-                    this.gameCore.onSend(new Move(2));
+                    this.gameCore.sendMoveDown();
+                }.bind(this),
+                keyUp: function() {
+                    this.gameCore.cancelMoveDown();
                 }.bind(this),
             },
             hkLeft: {
@@ -39,7 +47,10 @@ export default class Hotkey {
                 defaultMouseKey: '',
                 name: '左移動',
                 keyDown: function() {
-                    this.gameCore.onSend(new Move(4));
+                    this.gameCore.sendMoveLeft();
+                }.bind(this),
+                keyUp: function() {
+                    this.gameCore.cancelMoveLeft();
                 }.bind(this),
             },
             hkHotkeyMenu: {
@@ -59,14 +70,13 @@ export default class Hotkey {
                     if ('' !== $('#chat-input').val()) {
                         this.gameCore.onSend(new AddChat($('#chat-input').val()));
                         $('#chat-input').val('');
+                        $('#chat-input').blur();
                     }
                 }.bind(this),
             },
         };
         document.addEventListener('keydown', this.onKeyDown.bind(this));
         document.addEventListener('keyup', this.onKeyUp.bind(this));
-        // document.addEventListener('mousedown', this.onMouseDown.bind(this));
-        // document.addEventListener('mouseup', this.onMouseUp.bind(this));
 
         this.createHTML();
         this.createConfig();
@@ -130,55 +140,6 @@ export default class Hotkey {
         }
         if (this.config[this.keyBind[keyCode]]?.keyUp) {
             this.config[this.keyBind[keyCode]].keyUp();
-        }
-    }
-
-    /**
-     * マウスボタン押し込み
-     * @param {*} event 
-     */
-    onMouseDown(event) {
-        const lowerChar = event.target.tagName.toLowerCase();
-        const keyCode = this.getMouseKey(event);
-        if ('input' === lowerChar || 'textarea' === lowerChar) {
-            return;
-        }
-        if (Utils.ObjectIsNotNull(this.selectedHotkeyRow) && this.selectedHotkeyRow.attr('id') === 'mouseInput') {
-            if ('' !== keyCode) {
-                event.preventDefault();
-                if (this.mouseBind[this.selectedHotkeyRow.text()]) {
-                    delete this.mouseBind[this.selectedHotkeyRow.text()];
-                }
-                this.mouseBind[keyCode] = this.selectedHotkeyRow.parent().attr('id');
-                this.selectedHotkeyRow.text(keyCode);
-                this.selectedHotkeyRow.removeClass('selected');
-                this.selectedHotkeyRow = null;
-                this.saveHotkeys();
-            }
-        }
-        event.preventDefault();
-        const mouseBind = this.mouseBind[keyCode];
-        if (mouseBind) {
-            if (this.config[mouseBind]?.keyDown) {
-                this.config[mouseBind].keyDown();
-            }
-        }
-    }
-
-    /**
-     * マウスボタンの押上
-     * @param {*} event 
-     * @returns 
-     */
-    onMouseUp(event) {
-        const lowerChar = event.target.tagName.toLowerCase();
-        const keyCode = this.getMouseKey(event);
-        if ('input' === lowerChar || 'textarea' === lowerChar) {
-            return;
-        }
-        event.preventDefault();
-        if (this.config[this.mouseBind[keyCode]]?.keyUp) {
-            this.config[this.mouseBind[keyCode]].keyUp();
         }
     }
 
@@ -261,8 +222,6 @@ export default class Hotkey {
             divEl.append(labelEl);
             const inputElKey = $('<span>').attr('type', 'text').attr('id', 'keyInput').text(hotkey.defaultHotkey).addClass('hotkey-input-text');
             divEl.append(inputElKey);
-            const inputElMouse = $('<span>').attr('type', 'text').attr('id', 'mouseInput').text(hotkey.defaultMouseKey).addClass('hotkey-input-text').css('margin-left', '5px');
-            divEl.append(inputElMouse);
             
             inputElKey.on('click', function() {
                 if (Utils.ObjectIsNotNull(this.selectedHotkeyRow)) {
@@ -271,15 +230,6 @@ export default class Hotkey {
                 }
                 this.selectedHotkeyRow = inputElKey;
                 inputElKey.addClass('selected');
-            }.bind(this));
-
-            inputElMouse.on('click', function() {
-                if (Utils.ObjectIsNotNull(this.selectedHotkeyRow)) {
-                    this.selectedHotkeyRow.removeClass('selected');
-                    this.selectedHotkeyRow = null;
-                }
-                this.selectedHotkeyRow = inputElMouse;
-                inputElMouse.addClass('selected');
             }.bind(this));
             hotkeyTable.append(divEl);
         }
@@ -290,16 +240,12 @@ export default class Hotkey {
      */
     saveHotkeys() {
         Utils.setLocalStorage('hotkeys', JSON.stringify(this.keyBind));
-        Utils.setLocalStorage('mousekeys', JSON.stringify(this.mouseBind));
         this.changeElementText();
     }
 
     changeElementText() {
         for (let key in this.keyBind) {
             this.changeHotkeyElementText(this.keyBind[key], key);
-        }
-        for (let key in this.mouseBind) {
-            this.changeMouseElementText(this.mouseBind[key], key);
         }
     }
 
@@ -310,10 +256,6 @@ export default class Hotkey {
         const hotkeys = Utils.getLocalStorage('hotkeys');
         if (hotkeys) {
             this.keyBind = JSON.parse(hotkeys);
-        }
-        const mousekeys = Utils.getLocalStorage('mousekeys');
-        if (mousekeys) {
-            this.mouseBind = JSON.parse(mousekeys);
         }
         this.changeElementText();
     }
