@@ -113,9 +113,7 @@ export default class GameCore {
         });
         Object.values(this.bullets).forEach(bullets => {
             this.ctx.fillStyle = "rgb(255, 0, 0)";
-            this.ctx.fillRect(bullets.position.x, bullets.position.y, 10, 10);
-            // this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
-            //     character.position.x, character.position.y, chipSize, chipSize);
+            this.ctx.fillRect(bullets.position.x, bullets.position.y, bullets.size, bullets.size);
             // 遅延処理
             bullets.position.lerp(bullets.newPosition, 0.3);
         });
@@ -327,7 +325,7 @@ export default class GameCore {
 
     updateBullets(reader) {
         const bullets = {};
-        const count = reader.getUint16();
+        const count = reader.getUint32();
         for (let i = 0; i < count; i++) {
             const id = reader.getUint32();
             const x = reader.getFloat();
@@ -349,7 +347,6 @@ export default class GameCore {
         delIds.forEach(id => {
             delete this.bullets[id];
         });
-        // console.log(this.bullets);
     }
 
     /**
