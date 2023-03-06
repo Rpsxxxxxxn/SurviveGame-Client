@@ -7,6 +7,7 @@ import Move from "./packet/Move";
 import Player from "./entity/Player";
 import Bullet from "./entity/Bullet";
 import DamageText from "./entity/DamageText";
+import AnimImage from "./entity/AnimImage";
 
 export default class GameCore {
     constructor() {
@@ -25,9 +26,16 @@ export default class GameCore {
         this.lastPingTime = 0;
 
         this.damageTexts = [];
+        this.drawAnimImages = [];
+
+        this.explosionImage = new Image();
+        this.explosionImage.src = './assets/image/effect1.png';
 
         this.charImage = new Image();
         this.charImage.src = './assets/image/char.png';
+
+        this.enemyImage = new Image();
+        this.enemyImage.src = './assets/image/enemy1.png';
 
         this.dirtImage = new Image();
         this.dirtImage.src = './assets/image/dirt.png';
@@ -109,8 +117,13 @@ export default class GameCore {
         this.drawingSector(this.ctx);
         
         Object.values(this.characters).forEach(character => {
-            this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
-                character.position.x, character.position.y, chipSize, chipSize);
+            if (character.type === 0) {
+                this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
+                    character.position.x, character.position.y, chipSize, chipSize);
+            } else {
+                this.ctx.drawImage(this.enemyImage, 32, 32 * 0, 32, 32,
+                    character.position.x, character.position.y, chipSize, chipSize);
+            }
             character.position.lerp(character.newPosition, 0.3);
         });
         Object.values(this.bullets).forEach(bullets => {
@@ -123,7 +136,14 @@ export default class GameCore {
             if (damageText.isDelete()) {
                 this.damageTexts.splice(this.damageTexts.indexOf(damageText), 1);
             }
-        })
+        });
+        this.drawAnimImages.forEach((drawAnimImage) => {
+            drawAnimImage.update()
+            drawAnimImage.draw(this.ctx);
+            if (drawAnimImage.isDelete()) {
+                this.drawAnimImages.splice(this.drawAnimImages.indexOf(drawAnimImage), 1);
+            }
+        });
 
         if (Utils.ObjectIsNotNull(this.trackingEntity)) {
             this.ctx.restore();
@@ -229,12 +249,27 @@ export default class GameCore {
         const learderboard = [];
         const players = reader.getUint8();
         for (let i = 0; i < players; i++) {
-            const id = reader.getUint8();
+            const id = reader.getUint32();
             const name = reader.getString();
-            const score = reader.getUint16();
+            const score = reader.getUint32();
             learderboard.push({id: id, name: name, score: score});
         }
-        console.log(learderboard);
+        // console.log(learderboard);
+        
+        const divContent = $("<div />");
+
+        divContent.append($(`<div>`));
+        divContent.append($(`<span>`).addClass('name-text').text(`NAME`));
+        divContent.append($(`<span>`).addClass('mass-text').text(`SCORE`));
+
+        for (const element of learderboard) {
+            const nameText = !!element.name ? element.name : "名前無し";
+            const massText = Utils.shortUnitText(element.score, 10);
+            divContent.append($(`<div>`));
+            divContent.append($(`<span>`).text(`${nameText}`).addClass('name-text'));
+            divContent.append($(`<span>`).text(`${massText}`).addClass('mass-text'));
+        }
+        $("#lb_detail").html(divContent);
     }
 
     /**
@@ -294,10 +329,11 @@ export default class GameCore {
         const count = reader.getUint16();
         for (let i = 0; i < count; i++) {
             const id = reader.getUint32();
+            const type = reader.getUint8();
             const x = reader.getFloat();
             const y = reader.getFloat();
             const direction = reader.getFloat();
-            characters[id] = new Character(id, x, y);
+            characters[id] = new Character(id, type, x, y);
         }
         const newData = Object.keys(characters);
         const oldData = Object.keys(this.characters);
@@ -313,7 +349,6 @@ export default class GameCore {
         delIds.forEach(id => {
             delete this.characters[id];
         });
-        // console.log(this.characters);
     }
 
     /**
@@ -328,7 +363,8 @@ export default class GameCore {
         const g = reader.getUint8();
         const b = reader.getUint8();
         this.damageTexts.push(new DamageText(x, y, damage, r, g, b));
-        // console.log(x, y, damage, r, g, b);
+        const drawSize = 48;
+        this.drawAnimImages.push(new AnimImage(this.explosionImage, x - drawSize * .5, y - drawSize * .5, 180, drawSize, 10, 0.1));
     }
 
     /**
