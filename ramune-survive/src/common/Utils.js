@@ -210,4 +210,16 @@ export default class Utils {
     static removeLocalStorage(storageKey) {
         return localStorage.removeItem(storageKey);
     }
+
+    /**
+     * 
+     * @param {*} t 
+     * @param {*} b 
+     * @param {*} c 
+     * @param {*} d 
+     * @returns 
+     */
+    static easeOutExpo(t, b, c, d) {
+        return (t == d) ? b + c : c * (-Math.pow(2, -10 * t / d) + 1) + b;
+    }
 }

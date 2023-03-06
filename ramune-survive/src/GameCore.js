@@ -6,6 +6,7 @@ import Utils from "./common/Utils";
 import Move from "./packet/Move";
 import Player from "./entity/Player";
 import Bullet from "./entity/Bullet";
+import DamageText from "./entity/DamageText";
 
 export default class GameCore {
     constructor() {
@@ -22,6 +23,8 @@ export default class GameCore {
         this.bullets = {};
         this.border = { x: 0, y: 0, w: 100, h:100 };
         this.lastPingTime = 0;
+
+        this.damageTexts = [];
 
         this.charImage = new Image();
         this.charImage.src = './assets/image/char.png';
@@ -44,6 +47,21 @@ export default class GameCore {
         this.websocket.onmessage = this.messageHandler.bind(this);
         this.websocket.onclose = function() {
             console.log('Disconnected from server');
+        }
+    }
+
+    drawBackground(trackingX, trackingY, chipSize) {
+        const drawStartX = ~~((trackingX - window.innerWidth * .5) / chipSize);
+        const drawStartY = ~~((trackingY - window.innerHeight * .5) / chipSize);
+        const drawEndX = ~~((trackingX + window.innerWidth * .5) / chipSize);
+        const drawEndY = ~~((trackingY + window.innerHeight * .5) / chipSize);
+        for (let i = drawStartX; i < drawEndX + 1; i++) {
+            for (let j = drawStartY; j < drawEndY + 1; j++) {
+                if (i >= 0 && j >= 0 && i < this.border.w / chipSize && j < this.border.h / chipSize) {
+                    this.ctx.drawImage(this.dirtImage, 32, 32 * 4, 32, 32,
+                        i * chipSize, j * chipSize, chipSize, chipSize);
+                }
+            }
         }
     }
 
@@ -81,42 +99,31 @@ export default class GameCore {
             this.ctx.translate(-trackingX, -trackingY);
         } else {
             if (this.trackingId !== -1) {
-                // トラッキングするキャラクターを決める
                 this.trackingEntity = this.characters[this.trackingId];
-                // console.log(this.trackingEntity, this.trackingId);
             }
         }
-
         const chipSize = 48;
-        const drawStartX = ~~((trackingX - window.innerWidth * .5) / chipSize);
-        const drawStartY = ~~((trackingY - window.innerHeight * .5) / chipSize);
-        const drawEndX = ~~((trackingX + window.innerWidth * .5) / chipSize);
-        const drawEndY = ~~((trackingY + window.innerHeight * .5) / chipSize);
-        for (let i = drawStartX; i < drawEndX + 1; i++) {
-            for (let j = drawStartY; j < drawEndY + 1; j++) {
-                if (i >= 0 && j >= 0 && i < this.border.w / chipSize && j < this.border.h / chipSize) {
-                    this.ctx.drawImage(this.dirtImage, 32, 32 * 4, 32, 32,
-                        i * chipSize, j * chipSize, chipSize, chipSize);
-                }
-            }
-        }
+        this.drawBackground(trackingX, trackingY, chipSize)
 
         this.drawingBorder(this.ctx);
         this.drawingSector(this.ctx);
         
-        // キャラクターの描画
         Object.values(this.characters).forEach(character => {
             this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
                 character.position.x, character.position.y, chipSize, chipSize);
-            // 遅延処理
             character.position.lerp(character.newPosition, 0.3);
         });
         Object.values(this.bullets).forEach(bullets => {
             this.ctx.fillStyle = "rgb(255, 0, 0)";
             this.ctx.fillRect(bullets.position.x, bullets.position.y, bullets.size, bullets.size);
-            // 遅延処理
             bullets.position.lerp(bullets.newPosition, 0.3);
         });
+        this.damageTexts.forEach((damageText) => {
+            damageText.draw(this.ctx);
+            if (damageText.isDelete()) {
+                this.damageTexts.splice(this.damageTexts.indexOf(damageText), 1);
+            }
+        })
 
         if (Utils.ObjectIsNotNull(this.trackingEntity)) {
             this.ctx.restore();
@@ -316,16 +323,21 @@ export default class GameCore {
     addDamageText(reader) {
         const x = reader.getFloat();
         const y = reader.getFloat();
-        const damage = reader.getUint32();
+        const damage = reader.getString();
         const r = reader.getUint8();
         const g = reader.getUint8();
         const b = reader.getUint8();
-        console.log(x, y, damage, r, g, b);
+        this.damageTexts.push(new DamageText(x, y, damage, r, g, b));
+        // console.log(x, y, damage, r, g, b);
     }
 
+    /**
+     * 弾を更新する
+     * @param {*} reader 
+     */
     updateBullets(reader) {
         const bullets = {};
-        const count = reader.getUint32();
+        const count = reader.getUint16();
         for (let i = 0; i < count; i++) {
             const id = reader.getUint32();
             const x = reader.getFloat();
@@ -343,6 +355,7 @@ export default class GameCore {
         newData.forEach(id => {
             this.bullets[id].newPosition.x = bullets[id].position.x;
             this.bullets[id].newPosition.y = bullets[id].position.y;
+            this.bullets[id].size = bullets[id].size;
         });
         delIds.forEach(id => {
             delete this.bullets[id];
