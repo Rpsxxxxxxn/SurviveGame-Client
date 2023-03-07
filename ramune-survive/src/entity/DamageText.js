@@ -21,8 +21,8 @@ export default class DamageText {
         ctx.strokeStyle = 'black';
         ctx.textAlign = "center";
         ctx.font = "30px 'Arial'";
-        ctx.strokeText(String(this.damage), this.position.x, this.position.y);
-        ctx.fillText(String(this.damage), this.position.x, this.position.y);
+        ctx.strokeText(String(this.damage), this.position.x - 24, this.position.y - 24);
+        ctx.fillText(String(this.damage), this.position.x - 24, this.position.y - 24);
         this.position.y -= (100 / elapsedTime);
         ctx.restore();
     }

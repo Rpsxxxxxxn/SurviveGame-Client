@@ -58,21 +58,6 @@ export default class GameCore {
         }
     }
 
-    drawBackground(trackingX, trackingY, chipSize) {
-        const drawStartX = ~~((trackingX - window.innerWidth * .5) / chipSize);
-        const drawStartY = ~~((trackingY - window.innerHeight * .5) / chipSize);
-        const drawEndX = ~~((trackingX + window.innerWidth * .5) / chipSize);
-        const drawEndY = ~~((trackingY + window.innerHeight * .5) / chipSize);
-        for (let i = drawStartX; i < drawEndX + 1; i++) {
-            for (let j = drawStartY; j < drawEndY + 1; j++) {
-                if (i >= 0 && j >= 0 && i < this.border.w / chipSize && j < this.border.h / chipSize) {
-                    this.ctx.drawImage(this.dirtImage, 32, 32 * 4, 32, 32,
-                        i * chipSize, j * chipSize, chipSize, chipSize);
-                }
-            }
-        }
-    }
-
     /**
      * 更新処理
      */
@@ -119,16 +104,16 @@ export default class GameCore {
         Object.values(this.characters).forEach(character => {
             if (character.type === 0) {
                 this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
-                    character.position.x, character.position.y, chipSize, chipSize);
+                    character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
             } else {
                 this.ctx.drawImage(this.enemyImage, 32, 32 * 0, 32, 32,
-                    character.position.x, character.position.y, chipSize, chipSize);
+                    character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
             }
             character.position.lerp(character.newPosition, 0.3);
         });
         Object.values(this.bullets).forEach(bullets => {
             this.ctx.fillStyle = "rgb(255, 0, 0)";
-            this.ctx.fillRect(bullets.position.x, bullets.position.y, bullets.size, bullets.size);
+            this.ctx.fillRect(bullets.position.x - bullets.size * .5, bullets.position.y - bullets.size * .5, bullets.size, bullets.size);
             bullets.position.lerp(bullets.newPosition, 0.3);
         });
         this.damageTexts.forEach((damageText) => {
@@ -546,5 +531,26 @@ export default class GameCore {
         }
         ctx.stroke();
         ctx.restore();
+    }
+
+    /**
+     * 背景を描画する
+     * @param {*} trackingX 
+     * @param {*} trackingY 
+     * @param {*} chipSize 
+     */
+    drawBackground(trackingX, trackingY, chipSize) {
+        const drawStartX = ~~((trackingX - window.innerWidth * .5) / chipSize);
+        const drawStartY = ~~((trackingY - window.innerHeight * .5) / chipSize);
+        const drawEndX = ~~((trackingX + window.innerWidth * .5) / chipSize);
+        const drawEndY = ~~((trackingY + window.innerHeight * .5) / chipSize);
+        for (let i = drawStartX; i < drawEndX + 1; i++) {
+            for (let j = drawStartY; j < drawEndY + 1; j++) {
+                if (i >= 0 && j >= 0 && i < this.border.w / chipSize && j < this.border.h / chipSize) {
+                    this.ctx.drawImage(this.dirtImage, 32, 32 * 4, 32, 32,
+                        i * chipSize, j * chipSize, chipSize, chipSize);
+                }
+            }
+        }
     }
 }

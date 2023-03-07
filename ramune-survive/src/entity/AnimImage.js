@@ -38,7 +38,7 @@ export default class AnimImage {
         const dy = this.y;
         const dw = this.drawSize;
         const dh = this.drawSize;
-        ctx.drawImage(this.image, sx, sy, sw, sh, dx, dy, dw, dh);
+        ctx.drawImage(this.image, sx, sy, sw, sh, dx - dw * .5, dy - dh * .5, dw, dh);
     }
 
     isDelete() {
