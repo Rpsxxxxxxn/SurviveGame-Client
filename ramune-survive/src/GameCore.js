@@ -178,6 +178,9 @@ export default class GameCore {
         case 0x0A:
             this.updateBullets(reader);
             break;
+        case 0x0B:
+            this.updateLevel(reader);
+            break
         }
         this.calcServerPingTime();
         this.calcNetworkBufferUsage();
@@ -381,6 +384,12 @@ export default class GameCore {
         delIds.forEach(id => {
             delete this.bullets[id];
         });
+    }
+
+    updateLevel(reader) {
+        const level = reader.getUint8();
+        const exp = reader.getUint32();
+        console.log(level, exp);
     }
 
     /**
