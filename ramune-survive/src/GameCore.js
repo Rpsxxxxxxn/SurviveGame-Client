@@ -22,7 +22,7 @@ export default class GameCore {
         this.players = {};
         this.characters = {};
         this.bullets = {};
-        this.border = { x: 0, y: 0, w: 100, h:100 };
+        this.border = { x: 0, y: 0, w: 1000, h:1000 };
         this.lastPingTime = 0;
 
         this.damageTexts = [];
@@ -387,9 +387,9 @@ export default class GameCore {
     }
 
     updateLevel(reader) {
-        const level = reader.getUint8();
+        const level = reader.getUint16();
         const exp = reader.getUint32();
-        console.log(level, exp);
+        // console.log(level, exp);
     }
 
     /**
@@ -531,7 +531,7 @@ export default class GameCore {
         ctx.fillStyle = '#333333';
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = "bold " + .5 * w + "px Arial";
+        ctx.font = "bold " + .5 * w + "px Saira";
         for (let j = 0; j < 5; j++) {
             for (let i = 0; i < 5; i++) {
                 ctx.fillText((String.fromCharCode('A'.charCodeAt(0) + j)) + (i + 1), x + w * i + w / 2, y + h * j + h / 2);

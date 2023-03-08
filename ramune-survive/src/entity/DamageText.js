@@ -20,7 +20,7 @@ export default class DamageText {
         ctx.lineWidth = 2;
         ctx.strokeStyle = 'black';
         ctx.textAlign = "center";
-        ctx.font = "30px 'Arial'";
+        ctx.font = "30px 'Saira'";
         ctx.strokeText(String(this.damage), this.position.x - 24, this.position.y - 24);
         ctx.fillText(String(this.damage), this.position.x - 24, this.position.y - 24);
         this.position.y -= (100 / elapsedTime);
