@@ -37,6 +37,9 @@ export default class GameCore {
         this.enemyImage = new Image();
         this.enemyImage.src = './assets/image/enemy1.png';
 
+        this.itemImage = new Image();
+        this.itemImage.src = './assets/image/item1.png';
+
         this.dirtImage = new Image();
         this.dirtImage.src = './assets/image/dirt.png';
 
@@ -104,6 +107,9 @@ export default class GameCore {
         Object.values(this.characters).forEach(character => {
             if (character.type === 0) {
                 this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
+                    character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
+            } else if (character.type === 3) {
+                this.ctx.drawImage(this.itemImage, 32, 32 * 0, 32, 32,
                     character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
             } else {
                 this.ctx.drawImage(this.enemyImage, 32, 32 * 0, 32, 32,
