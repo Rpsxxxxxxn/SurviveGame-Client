@@ -5,17 +5,16 @@ export default class BinaryWriter {
         this.reset();
     }
 
-    reset() {
-        this.view = [];
-        this.offset = 0;
-    }
-
     setUint8(a) {
-        if (a >= 0 && a < 256) this.view.push(a);
+        if (a >= 0 && a < 256) {
+            this.view.push(a);
+        }
     }
 
     setInt8(a) {
-        if (a >= -128 && a < 128) this.view.push(a);
+        if (a >= -128 && a < 128) {
+            this.view.push(a);
+        }
     }
 
     setUint16(a) {
@@ -38,30 +37,55 @@ export default class BinaryWriter {
         this.skipBytes(4);
     }
 
-    setFloat32(a) {
+    setFloat(a) {
         this.buffer.setFloat32(0, a, this.endian);
         this.skipBytes(4);
     }
 
-    setFloat64(a) {
+    setDouble(a) {
         this.buffer.setFloat64(0, a, this.endian);
         this.skipBytes(8);
     }
 
+    /**
+     * バイトをスキップする
+     * @param {*} a 
+     */
     skipBytes(a) {
         for (let i = 0; i < a; i++) {
             this.view.push(this.buffer.getUint8(i));
         }
     }
 
-    setString(s) {
-        this.setUint16(s.length);
-        for (let i = 0; i < s.length; i++) {
-            this.setUint16(s.charCodeAt(i));
+    /**
+     * 文字列をセットする
+     * @param {*} s 
+     */
+    setString(value) {
+        this.setUint16(value.length);
+        for (let i = 0; i < value.length; i++) {
+            this.setUint16(value.charCodeAt(i));
+        }
+    }
+
+    /**
+     * UTF-8の文字列をセットする
+     * @param {*} s 
+     */
+    setUTF8String(s) {
+        let bytes = new TextEncoder("utf-8").encode(s);
+        this.setUint8(bytes.length);
+        for (let i = 0; i < bytes.length; i++) {
+            this.setUint8(bytes[i]);
         }
     }
 
     build() {
         return new Uint8Array(this.view);
+    }
+
+    reset() {
+        this.view = [];
+        this.offset = 0;
     }
 }

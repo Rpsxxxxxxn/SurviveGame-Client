@@ -10,19 +10,19 @@ export default class BinaryReader {
     }
 
     getInt16() {
-        let result = this.view.getInt16(this.offset, this.endian);
+        const result = this.view.getInt16(this.offset, this.endian);
         this.skipBytes(2);
         return result;
     }
 
     getInt24() {
-        let result = this.view.getInt16(this.offset, this.endian);
+        const result = this.view.getInt16(this.offset, this.endian);
         this.skipBytes(3);
         return result;
     }
 
     getInt32() {
-        let result = this.view.getInt32(this.offset, this.endian);
+        const result = this.view.getInt32(this.offset, this.endian);
         this.skipBytes(4);
         return result;
     }
@@ -32,35 +32,39 @@ export default class BinaryReader {
     }
 
     getUint16() {
-        let result = this.view.getUint16(this.offset, this.endian);
+        const result = this.view.getUint16(this.offset, this.endian);
         this.skipBytes(2);
         return result;
     }
 
     getUint24() {
-        let result = this.view.getUint16(this.offset, this.endian);
+        const result = this.view.getUint16(this.offset, this.endian);
         this.skipBytes(3);
         return result;
     }
 
     getUint32() {
-        let result = this.view.getUint32(this.offset, this.endian);
+        const result = this.view.getUint32(this.offset, this.endian);
         this.skipBytes(4);
         return result;
     }
 
     getFloat() {
-        let result = this.view.getFloat32(this.offset, this.endian);
+        const result = this.view.getFloat32(this.offset, this.endian);
         this.skipBytes(4);
         return result;
     }
 
     getDouble() {
-        let result = this.view.getFloat64(this.offset, this.endian);
+        const result = this.view.getFloat64(this.offset, this.endian);
         this.skipBytes(8);
         return result;
     }
 
+    /**
+     * 文字列を取得する
+     * @returns 
+     */
 	getString() {
 		let [length, name] = [this.getUint16(), ""];
         for (let i = 0; i < length; i++) {
@@ -69,14 +73,22 @@ export default class BinaryReader {
         return name;
 	}
 
+    /**
+     * UTF-8 string
+     * @returns 
+     */
     getUTF8String() {
-        let [length, name] = [this.getUint16(), ""];
+        let [length, value] = [this.getUint8(), ""];
         for (let i = 0; i < length; i++) {
-            name += decodeURIComponent(String.fromCharCode(char));
+            value += this.getUint8();
         }
-        return name;
+        return new TextDecoder("utf-8").decode(value);
     }
 
+    /**
+     * バイトをスキップする
+     * @param {*} length 
+     */
     skipBytes(length) {
         this.offset += length;
     }

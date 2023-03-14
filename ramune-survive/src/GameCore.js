@@ -1,49 +1,45 @@
+import $ from 'jquery';
 import BinaryReader from "./common/BinaryReader";
 import Hotkey from "./common/HotKey";
 import Character from "./entity/Character";
-import $ from 'jquery';
 import Utils from "./common/Utils";
 import Move from "./packet/Move";
 import Player from "./entity/Player";
 import Bullet from "./entity/Bullet";
 import DamageText from "./entity/DamageText";
 import AnimImage from "./entity/AnimImage";
+import ImageManager from "./common/ImageManager";
 
 export default class GameCore {
     constructor() {
+        this.imageManager = new ImageManager();
         this.hotkey = new Hotkey(this);
         this.canvas = document.getElementById('canvas');
         this.ctx = canvas.getContext('2d');
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
 
+        this.border = { x: 0, y: 0, w: 1000, h:1000 };
         this.trackingId = -1;
         this.trackingEntity = null;
         this.players = {};
         this.characters = {};
         this.bullets = {};
-        this.border = { x: 0, y: 0, w: 1000, h:1000 };
-        this.lastPingTime = 0;
-
         this.damageTexts = [];
         this.drawAnimImages = [];
-
-        this.explosionImage = new Image();
-        this.explosionImage.src = './assets/image/effect1.png';
-
-        this.charImage = new Image();
-        this.charImage.src = './assets/image/char.png';
-
-        this.enemyImage = new Image();
-        this.enemyImage.src = './assets/image/enemy1.png';
-
-        this.itemImage = new Image();
-        this.itemImage.src = './assets/image/item1.png';
-
-        this.dirtImage = new Image();
-        this.dirtImage.src = './assets/image/dirt.png';
-
+        this.lastPingTime = 0;
         setInterval(this.updateMove.bind(this), 10);
+    }
+
+    /**
+     * リソースの読み込み
+     */
+    loadAssets() {
+        this.imageManager.addImage('./assets/image/effect1.png', 'effect1');
+        this.imageManager.addImage('./assets/image/char.png', 'char');
+        this.imageManager.addImage('./assets/image/enemy1.png', 'enemy1');
+        this.imageManager.addImage('./assets/image/item1.png', 'item1');
+        this.imageManager.addImage('./assets/image/dirt.png', 'dirt');
     }
 
     /**
@@ -106,13 +102,13 @@ export default class GameCore {
         
         Object.values(this.characters).forEach(character => {
             if (character.type === 0) {
-                this.ctx.drawImage(this.charImage, 32, 32 * 0, 32, 32,
+                this.ctx.drawImage(this.imageManager.getImage('char'), 32, 32 * 0, 32, 32,
                     character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
             } else if (character.type === 3) {
-                this.ctx.drawImage(this.itemImage, 32, 32 * 0, 32, 32,
+                this.ctx.drawImage(this.imageManager.getImage('item1'), 32, 32 * 0, 32, 32,
                     character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
             } else {
-                this.ctx.drawImage(this.enemyImage, 32, 32 * 0, 32, 32,
+                this.ctx.drawImage(this.imageManager.getImage('enemy1'), 32, 32 * 0, 32, 32,
                     character.position.x - chipSize * .5, character.position.y - chipSize * .5, chipSize, chipSize);
             }
             character.position.lerp(character.newPosition, 0.3);
@@ -248,14 +244,10 @@ export default class GameCore {
             const score = reader.getUint32();
             learderboard.push({id: id, name: name, score: score});
         }
-        // console.log(learderboard);
-        
-        const divContent = $("<div />");
-
+        const divContent = $("<div/>");
         divContent.append($(`<div>`));
         divContent.append($(`<span>`).addClass('name-text').text(`NAME`));
         divContent.append($(`<span>`).addClass('mass-text').text(`SCORE`));
-
         for (const element of learderboard) {
             const nameText = !!element.name ? element.name : "名前無し";
             const massText = Utils.shortUnitText(element.score, 10);
@@ -358,7 +350,12 @@ export default class GameCore {
         const b = reader.getUint8();
         this.damageTexts.push(new DamageText(x, y, damage, r, g, b));
         const drawSize = 48;
-        this.drawAnimImages.push(new AnimImage(this.explosionImage, x - drawSize * .5, y - drawSize * .5, 180, drawSize, 10, 0.1));
+        this.drawAnimImages.push(
+            new AnimImage(this.imageManager.getImage('effect1'),
+            x - drawSize * .5,
+            y - drawSize * .5,
+            180,
+            drawSize, 10, 0.1));
     }
 
     /**
@@ -392,6 +389,10 @@ export default class GameCore {
         });
     }
 
+    /**
+     * レベルと経験値を更新する
+     * @param {*} reader 
+     */
     updateLevel(reader) {
         const level = reader.getUint16();
         const exp = reader.getUint32();
@@ -562,7 +563,7 @@ export default class GameCore {
         for (let i = drawStartX; i < drawEndX + 1; i++) {
             for (let j = drawStartY; j < drawEndY + 1; j++) {
                 if (i >= 0 && j >= 0 && i < this.border.w / chipSize && j < this.border.h / chipSize) {
-                    this.ctx.drawImage(this.dirtImage, 32, 32 * 4, 32, 32,
+                    this.ctx.drawImage(this.imageManager.getImage('dirt'), 32, 32 * 4, 32, 32,
                         i * chipSize, j * chipSize, chipSize, chipSize);
                 }
             }

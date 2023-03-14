@@ -8,32 +8,4 @@ export default class Player {
         this.int = int;
         this.luk = luk;
     }
-
-    get Id() {
-        return this.id;
-    }
-
-    get Name() {
-        return this.name;
-    }
-
-    get Hp() {
-        return this.hp;
-    }
-
-    get Str() {
-        return this.str;
-    }
-
-    get Dex() {
-        return this.dex;
-    }
-
-    get Int() {
-        return this.int;
-    }
-
-    get Luk() {
-        return this.luk;
-    }
 }
